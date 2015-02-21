@@ -51,8 +51,9 @@ class HostManager(object):
         - /nh/lo : Validates Nagios config storage for the mote with the source 
                    address of the packet -- a kind of registration to prepare 
                    for data messages.
-        - /nh/rss: Reads JSON payload for RSS value at 's' key, with the neighbor 
-                   whose address ends with the 4 hex chars (2 bytes) at 'n' key. 
+        - /nh/rss: Reads JSON payload for RSS values with key of the neighbor 
+                   whose address ends with the 4 hex chars (2 bytes), and value
+                   of the RSS reading. 
         '''
         log.debug('POST resource path is {0}'.format(resource.path))
         if resource.path == '/nh/rss':
@@ -69,40 +70,29 @@ class HostManager(object):
 
             host = hosts[0]
             
-            # Validate request payload
-            nbrAddr  = None
-            intValue = None
-            try:
-                nbrAddr  = resource.value['n']     # last 2 bytes / 4 hex chars
-                intValue = resource.value['s']
-            except KeyError:
-                log.error('/nh/rss: Missing \'n\' or \'s\' key in payload')
-                resource.resultClass = CodeClass.ClientError
-                resource.resultCode  = ClientResponseCode.BadRequest
-                return
-            
-            # Search for existing service record
-            serviceName = 'rss-{0}'.format(nbrAddr)
-            services    = Service.objects.filter(service_description=serviceName)
-            if not services:
-                # Service creation example: https://github.com/pynag/pynag/wiki/Model
-                log.warn('/nh/rss: Service not found: {0}'.format(serviceName))
-                resource.resultClass = CodeClass.ClientError
-                resource.resultCode  = ClientResponseCode.PreconditionFailed
-                return
-            elif len(services) > 1:
-                log.warn('Found {0} services; using the first one'.format(len(services)))
+            for (nbrAddr,intValue) in resource.value.items():
+                # Search for existing service record for this neighbor
+                serviceName = 'rss-{0}'.format(nbrAddr)
+                services    = Service.objects.filter(service_description=serviceName)
+                if not services:
+                    # Service creation example: https://github.com/pynag/pynag/wiki/Model
+                    log.warn('/nh/rss: Service not found: {0}'.format(serviceName))
+                    resource.resultClass = CodeClass.ClientError
+                    resource.resultCode  = ClientResponseCode.PreconditionFailed
+                    continue
+                elif len(services) > 1:
+                    log.warn('Found {0} services; using the first one'.format(len(services)))
+                    
+                service = services[0]
                 
-            service = services[0]
-            
-            # Submit RSS
-            pynag.Utils.send_nsca(pynag.Plugins.OK, 
-                                  'Received RSS|rss={0}dBm;;;-100;-20'.format(intValue), 
-                                  'localhost', 
-                                  hostname=host.host_name, 
-                                  service=service.service_description)
-            log.debug('Sent nsca for hostname {0}, service {1}'.format(host.host_name, 
-                                                                       service.service_description))
+                # Submit RSS
+                pynag.Utils.send_nsca(pynag.Plugins.OK, 
+                                      'Received RSS|rss={0}dBm;;;-100;-20'.format(intValue), 
+                                      'localhost', 
+                                      hostname=host.host_name, 
+                                      service=service.service_description)
+                log.debug('Sent nsca for hostname {0}, service {1}'.format(host.host_name, 
+                                                                           service.service_description))
             
             # Submit DAG rank
             #try:
