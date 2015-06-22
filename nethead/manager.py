@@ -174,6 +174,7 @@ class HostManager(object):
         host.check_interval         = 5                         # must define these two values,
         host.max_check_attempts     = 5                         # even though not used
         host.passive_checks_enabled = 1
+        host['2d_coords']           = "100,100"                 # arbitrary values, so shows on map
         
         host.set_filename('/etc/nagios3/okconfig/hosts/{0}.cfg'.format(host.host_name))
         host.save()
