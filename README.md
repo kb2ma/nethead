@@ -3,10 +3,10 @@ See the [Wiki][1] for features, implementation notes, and the roadmap.
 
 Usage
 =====
-Must run as superuser, to run the 'send_nsca' executable. From a command line:
+From a command line:
 
 ```
-    # python manager.py
+    $ python manager.py
 ```
     
 Nethead generates a log file, `nethead.log`.
